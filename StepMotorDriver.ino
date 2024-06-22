@@ -110,7 +110,7 @@ void joy_xy_mode() {
                 Serial.print(ZNsteps); 
                 Serial.print(" Heigt:");
                 Serial.println(height); 
-                Serial.println(""); 
+                Serial.println("z"); 
                 print_once = false; 
             }
 
