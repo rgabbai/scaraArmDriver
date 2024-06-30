@@ -28,6 +28,9 @@ Written by Rony.gabbai@gmail.com
 
 #include "A4988.h"
 #include "StepMotorDriver.h"
+#include "scaraArmDriver.h"
+#include <math.h>
+#include <stdlib.h>
 
 
 
@@ -85,6 +88,10 @@ int runCommand() {
         Serial.println(BAUDRATE);
     break;
 
+    case INV_KINEMATIC:
+        Serial.println("Iverse kinematic");
+        goto_xy(arg1,arg2);
+    break;
     case RESET_MOTOR:
         Serial.print("Reset step motor");
         Serial.println(arg1);
@@ -98,6 +105,11 @@ int runCommand() {
           case 2:
             resetStepMotor('z');
           break;
+          case 3:
+            resetStepMotor('z');
+            resetStepMotor('x');
+            resetStepMotor('y');
+          break;         
           default:
               Serial.println("Invalid motor selection in RESET_MOTOR Command");
           break;
