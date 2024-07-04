@@ -122,14 +122,25 @@ int runCommand() {
       break;
       case JOY_MODE_XY:
         Serial.print("Activate JOY- XY mode");
-        joy_xy_mode();
+        joy_xy_mode(false);
       break;
 
       case PAUSE:
         Serial.print("Pause all modes"); 
         //joyZmode = false;   
       break;
+      case SAVE_PATH_XY:
+        Serial.print("SAVE_PATH: XY"); 
+        joy_xy_mode(true);
 
+      break;
+      case LOAD_PATH_XY:
+        Serial.println("LOAD_PATH: XY");
+        load_path_xy(arg1); 
+      break;
+      case ARM_LOCATION:
+        arm_location();
+      break;
     default:
     Serial.println("Invalid Command");
     break;

@@ -185,18 +185,17 @@ void y_motor_step(){
 
 
 
-void joy_xy_mode() {
+void joy_xy_mode(bool save) {
 // Joystic mode for XY dim
     bool cont = true;
-
+    print_once = false;
+    if (save) {pathIndex = 0;} // reset path mememory // todo change to link list
     Serial.println("");       
     while (cont) {
         vrx_data = analogRead(vrx);
         vry_data = analogRead(vry);
         Xlimit = digitalRead(XLimitPin);
         Ylimit = digitalRead(YLimitPin);
-
-
 
         // Stop state 
         if (((vrx_data > MID_TH-10)&&(vrx_data < MID_TH+10))&&
@@ -205,6 +204,16 @@ void joy_xy_mode() {
             
             if (print_once) {   
                 digitalWrite(enable,HIGH); // STOP All motors
+                if (save) { //save location
+                        if (pathIndex < MAX_PATH_POINTS) {
+                            path[pathIndex].theta1 = th1X;
+                            path[pathIndex].theta2 = th2Y;
+                            pathIndex++;
+                        } else {
+                            Serial.println("Warnning Path storage is full.");
+                        }
+
+                }
                 Serial.print("Stop");
                 Serial.print("| XSpeed:");
                 Serial.print(XSMSpeed);
@@ -221,9 +230,9 @@ void joy_xy_mode() {
                 Serial.print(XNsteps); 
                 Serial.print(" Rel YNsteps:");
                 Serial.print(YNsteps_relative); 
-                Serial.print("    Th1x:");
+                Serial.print("|   Th1x: ");
                 Serial.print(th1X); 
-                Serial.print(" Th2y:");
+                Serial.print(" | Th2y: ");
                 Serial.println(th2Y); 
                 print_once = false; 
             }
@@ -244,7 +253,7 @@ void joy_xy_mode() {
                 if (!Xlimit) continue;
             }
             YNsteps_relative = YNsteps_relative - JRP*XY_RATIO; //Reduce YNSTEP
-            th1X += JRP*XPROX_DEG_STEP;                         //TH1 Degree change
+            th1X -= JRP*XPROX_DEG_STEP;                         //TH1 Degree change
             th2Y -= JRP*YXDIST_DEG_STEP;                         //TH2 Relative Degree change
 
             print_once = true;
@@ -259,7 +268,7 @@ void joy_xy_mode() {
                 x_motor_step();  
             }
             YNsteps_relative = YNsteps_relative + JRP*XY_RATIO; //Increase YNSTEP
-            th1X -= JRP*XPROX_DEG_STEP;
+            th1X += JRP*XPROX_DEG_STEP;
             th2Y += JRP*YXDIST_DEG_STEP;                         //TH2 Relative Degree change
 
             print_once = true;
@@ -488,4 +497,116 @@ bool isReachable(float x, float y, float L1, float L2) {
   return (distance <= (L1 + L2) && distance >= fabs(L1 - L2));
 }
 
+void load_path_xy(int idx) {
+    //replay recorded path idx times
+    Serial.print("Replay recorded path N:");
+    Serial.print(idx);
+    Serial.println(" times");
+    Serial.print("Path length:");
+    Serial.println(pathIndex);
 
+    for (int i = 0;i<idx ; i++){
+
+        // Replay backward
+        Serial.print("idx:");
+        Serial.println(i);
+
+        for (int j = pathIndex-1 ;j >= 0; j--) {
+            Serial.print("Point path:");
+            Serial.println(j);
+            moveArmTo(path[j].theta1, path[j].theta2);
+            delay(1000); // Adjust delay as needed
+        }
+        // Play forward
+        for (int j = 1;j < pathIndex;j++) {
+            Serial.print("Point path:");
+            Serial.println(j);
+            moveArmTo(path[j].theta1, path[j].theta2);
+            delay(1000); // Adjust delay as needed
+        }
+
+    }
+
+}
+
+void moveArmTo(float theta1, float theta2) {
+  // move arms to requested th1 and th2
+    Serial.print("Current Th1X:");
+    Serial.print(th1X);
+    Serial.print(" Moving to Theta 1: ");
+    Serial.print(theta1);
+    Serial.print(" | Theta 2: ");
+    Serial.println(theta2);
+    //Adjust arm proximal location - Step motor X
+    moveArmToTh1(theta1);
+    //Adjust arm Distal   location - Step motor Y
+    moveArmToTh2(theta2);
+   
+    Serial.print("Final th1X:");
+    Serial.print(th1X);
+    Serial.print(" th2Y:");
+    Serial.println(th2Y);     
+}
+
+void moveArmToTh1(float theta1) {
+//Adjust arm proximal location
+    int dir = 0;
+    digitalWrite(enable,LOW);
+    if ((th1X - theta1) > 0 ) {
+        digitalWrite(XdirPin,HIGH);
+        dir = 1;
+    } else {
+        digitalWrite(XdirPin,LOW);  
+        dir = 0;
+    }
+    while  ((fabs(th1X - theta1)>THETA_TH)&&(fabs(th1X)<XMRANGE)) {
+            for (int i=0;i<DX;i++) {
+                x_motor_step();
+            }
+            if (dir==1) {
+                th1X -= XPROX_DEG_STEP*DX;
+                th2Y -= YXDIST_DEG_STEP*DX;
+            }else {
+                th1X += XPROX_DEG_STEP*DX;         //TH1 Degree change
+                th2Y += YXDIST_DEG_STEP*DX;
+            }
+    }
+
+}
+
+void moveArmToTh2(float theta2) {
+    int dir = 0;
+    digitalWrite(enable,LOW);
+    if ((th2Y >0)&&(th2Y - theta2) > 0 ) {
+        digitalWrite(YdirPin,LOW);
+        dir = 0;
+    } else if ((th2Y>0)&&((th2Y - theta2) < 0 )) {
+        digitalWrite(YdirPin,HIGH);  
+        dir = 1;      
+    } else if ((th2Y<0)&&((th2Y > theta2))){
+        digitalWrite(YdirPin,LOW);  
+        dir = 0;
+    } else if ((th2Y<0)&&((th2Y < theta2))){
+        digitalWrite(YdirPin,HIGH);  
+        dir = 1;
+    }
+
+    while  ((fabs(th2Y - theta2)>THETA_TH)) {//&& (fabs(th2Y)<=YMRANGE)*!dir) {
+        for (int i=0;i<DX;i++) {
+            y_motor_step();
+        }
+        if (dir==0) th2Y -= YDIST_DEG_STEP*DX;else th2Y += YDIST_DEG_STEP*DX;         //TH1 Degree change
+    }
+
+}
+
+void  arm_location() {
+// Return Arm location
+    Serial.println("-------------------------------");
+    Serial.print("th1X:");
+    Serial.print(th1X);
+    Serial.print(" th2Y:");
+    Serial.println(th2Y);
+    Serial.println("-------------------------------");
+
+}

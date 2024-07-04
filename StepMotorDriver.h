@@ -34,8 +34,9 @@
 #define YDIST_STEP_DEG  51.77104377  // Motor Y [steps/degree]
 #define YDIST_DEG_STEP  0.01931581686 //51.76[steps/degree] Motor Y [degree/steps]
 #define YXDIST_DEG_STEP 0.01663306452 //60.121212122[steps/degree] Motor Y degree/steps] due X motor move
-#define THETA_TH        1             // delta th of arm theta location search 
+#define THETA_TH        0.2             // delta th of arm theta location search 
 #define DX              1            // theta movement for go_to_xy
+#define MAX_PATH_POINTS 20 // Maximum number of points in the saved path
 
 
 // Stepper Motor X
@@ -96,7 +97,13 @@ bool zSpUpdate = false;
 int buttonState = 0;
 const int buttonStateCount = 10;
 
+struct AnglePair { //object for saving path
+  float theta1;
+  float theta2;
+};
 
+AnglePair path[MAX_PATH_POINTS];
+int pathIndex = 0;
 
 
 bool print_once = true; // use to print once
@@ -110,7 +117,7 @@ void resetStepMotor(char smNum); // localize stepper motor using limit switch
 
 void joy_z_mode();  // Joystic control Z motor 
 
-void joy_xy_mode(); // Joystic control X/Y motor 
+void joy_xy_mode(bool save); // Joystic control X/Y motor save- save path
 
 bool isButtonPressed();    // detect valid long sw press
 
@@ -118,5 +125,7 @@ void x_motor_step();  // X motor move single step
 void y_motor_step();  // Y motor move single step
 void goto_xy(long x, long y); // goto xy coordinate 
 void calculateInverseKinematics(float x, float y, float *theta1, float *theta2); //inv kinematic
+void load_path_xy(int idx); //run recorded path 
+void arm_location();
 
 
